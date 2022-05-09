@@ -13,12 +13,14 @@ import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.starter.SpringWebhookBot;
 import ru.skb.rentguy.first.cash.BotStateCash;
+import ru.skb.rentguy.first.cash.MessageHandlerCash;
 import ru.skb.rentguy.first.constants.bot.BotMessageEnum;
 import ru.skb.rentguy.first.model.BotState;
 import ru.skb.rentguy.first.telegram.handlers.CallbackQueryHandler;
 import ru.skb.rentguy.first.telegram.handlers.MessageHandler;
 
 import java.io.IOException;
+import java.util.Date;
 
 @Getter
 @Setter
@@ -29,6 +31,8 @@ public class WriteReadBot extends SpringWebhookBot {
     String botToken;
     @Autowired
     BotStateCash botStateCash;
+    @Autowired
+    MessageHandlerCash messageHandlerCash;
 
     MessageHandler messageHandler;
     CallbackQueryHandler callbackQueryHandler;
@@ -53,6 +57,9 @@ public class WriteReadBot extends SpringWebhookBot {
     }
 
     private BotApiMethod<?> handleUpdate(Update update) throws IOException {
+        if(update.getMessage() != null &&update.getMessage().getFrom() != null){
+            System.out.println(new Date().toString()+ " " + update.getMessage().getFrom().getUserName() + " " + update.getMessage().getText());
+        }
         if (update.hasCallbackQuery()) {
             CallbackQuery callbackQuery = update.getCallbackQuery();
             return callbackQueryHandler.processCallbackQuery(callbackQuery);
@@ -67,17 +74,21 @@ public class WriteReadBot extends SpringWebhookBot {
 
     private BotApiMethod<?> handleInputMessage(Message message) {
         BotState botState;
+        BotState msgHandlerState;
         String inputMsg = message.getText();
 
         switch (inputMsg) {
             case "/start":
                 botState = BotState.START;
+                msgHandlerState = BotState.START;
                 break;
             default:
                 botState = botStateCash.getBotStateMap().get(message.getFrom().getId()) == null ?
                         BotState.START: botStateCash.getBotStateMap().get(message.getFrom().getId());
+                msgHandlerState = messageHandlerCash.getBotStateMap().get(message.getFrom().getId()) == null ?
+                        BotState.START : messageHandlerCash.getBotStateMap().get(message.getFrom().getId());
         }
-        return messageHandler.handle(message, botState);
+        return messageHandler.handle(message, botState, msgHandlerState);
 
     }
 }

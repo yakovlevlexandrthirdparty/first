@@ -11,6 +11,7 @@ import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import ru.skb.rentguy.first.cash.BotStateCash;
+import ru.skb.rentguy.first.cash.MessageHandlerCash;
 import ru.skb.rentguy.first.model.BotState;
 
 import java.text.ParseException;
@@ -24,15 +25,18 @@ import java.util.Locale;
 @FieldDefaults(makeFinal = true, level = AccessLevel.PRIVATE)
 @RequiredArgsConstructor
 public class MessageHandler {
+    @Autowired
     BotStateCash botStateCash;
+    @Autowired
+    MessageHandlerCash messageHandlerCash;
+
     @Autowired
     CallbackQueryHandler callbackQueryHandler;
 
-    public BotApiMethod<?> handle(Message message, BotState botState) {
+    public BotApiMethod<?> handle(Message message, BotState botState, BotState msgHandlerStage) {
         long userId = message.getFrom().getId();
         long chatId = message.getChatId();
-        SendMessage sendMessage = new SendMessage();
-        sendMessage.setChatId(String.valueOf(chatId));
+        System.out.println("STATE>>"+botState.name()+"|"+msgHandlerStage.name()+"|"+message.getText());
         //if new user
         //TODO: save new user to repository
 //        if (!userDAO.isExist(userId)) {
@@ -40,24 +44,28 @@ public class MessageHandler {
 //        }
         //save state in to cache
         botStateCash.saveBotState(userId, botState);
+        messageHandlerCash.saveBotCategoryState(userId, msgHandlerStage);
         //if state =...
-        switch (botState.name()) {
+        switch (msgHandlerStage.name()) {
             case ("START"):
-                return callbackQueryHandler.getMainMenuMessage(message.getChatId(), userId);
-            case ("RENT_CAR"):
-            case ("RENT_APARTMENT"):
-            case ("APARTMENTS_LIST"):
-                return getSendMessage(String.valueOf(chatId));
+                return callbackQueryHandler.getMainMenuMessage(message.getChatId(), userId, new InlineKeyboardMarkup());
+            case ("CAR"):
+            case ("APARTMENT"):
             case ("INPUT_DATES"):
-                return enterDates(message);
+                return enterDates(message, msgHandlerStage);
             case ("INPUT_BEDROOMS"):
                 return enterBedRooms(message);
+            case ("INPUT_PRICES"):
+                return enterPrices(message);
+            case ("APARTMENTS_LIST"):
+            case ("CAR_LIST"):
+                return getSendMessage(String.valueOf(chatId));
             default:
                 throw new IllegalStateException("Unexpected value: " + botState);
         }
     }
 
-    public BotApiMethod<?> enterDates(Message message) {
+    public BotApiMethod<?> enterDates(Message message, BotState msgHandlerStage) {
         long userId = message.getFrom().getId();
         SendMessage sendMessage = new SendMessage();
         sendMessage.setChatId(String.valueOf(message.getChatId()));
@@ -69,14 +77,18 @@ public class MessageHandler {
         try {
             Date startDate = simpleDateFormat.parse(stringStartDate);
             Date endDate = simpleDateFormat.parse(stringEndDate);
-            sendMessage.setText("Дата заезда: " + new SimpleDateFormat("EEE, d MMM yyyy", Locale.getDefault()).format(startDate) +
-                    "\nДата выезда: "+ new SimpleDateFormat("EEE, d MMM yyyy", Locale.getDefault()).format(endDate));
+            sendMessage.setText("Дата начала аренды: " + new SimpleDateFormat("EEE, d MMM yyyy", Locale.getDefault()).format(startDate) +
+                    "\nДата окончания аренды: "+ new SimpleDateFormat("EEE, d MMM yyyy", Locale.getDefault()).format(endDate));
         } catch (ParseException e) {
             sendMessage.setText("Exception");
             e.printStackTrace();
         }
         sendMessage.setReplyMarkup(getInlineMessageButtons(List.of("Да, даты верны|acceptDates")));
-        botStateCash.saveBotState(userId, BotState.INPUT_BEDROOMS);
+        if(msgHandlerStage.equals(BotState.APARTMENT)) {
+            messageHandlerCash.saveBotCategoryState(userId, BotState.INPUT_BEDROOMS);
+        } else {
+            messageHandlerCash.saveBotCategoryState(userId, BotState.INPUT_PRICES);
+        }
         return sendMessage;
     }
 
@@ -86,7 +98,17 @@ public class MessageHandler {
         sendMessage.setChatId(String.valueOf(message.getChatId()));
         sendMessage.setText("Подтвердите количество комнат: " + message.getText());
         sendMessage.setReplyMarkup(getInlineMessageButtons(List.of("Да, количество комнат верно|acceptBedRooms")));
-        botStateCash.saveBotState(userId, BotState.APARTMENTS_LIST);
+        messageHandlerCash.saveBotCategoryState(userId,BotState.APARTMENTS_LIST);
+        return sendMessage;
+    }
+
+    public BotApiMethod<?> enterPrices(Message message) {
+        long userId = message.getFrom().getId();
+        SendMessage sendMessage = new SendMessage();
+        sendMessage.setChatId(String.valueOf(message.getChatId()));
+        sendMessage.setText("Подтвердите диапазон цен: от " + message.getText());
+        sendMessage.setReplyMarkup(getInlineMessageButtons(List.of("Да, диапазон цен верный|acceptPrice")));
+        messageHandlerCash.saveBotCategoryState(userId,BotState.APARTMENTS_LIST);
         return sendMessage;
     }
 
