@@ -33,8 +33,9 @@ public class WriteReadBot extends SpringWebhookBot {
     BotStateCash botStateCash;
     @Autowired
     MessageHandlerCash messageHandlerCash;
-
+    @Autowired
     MessageHandler messageHandler;
+    @Autowired
     CallbackQueryHandler callbackQueryHandler;
 
     public WriteReadBot(SetWebhook setWebhook, MessageHandler messageHandler,CallbackQueryHandler callbackQueryHandler) {
