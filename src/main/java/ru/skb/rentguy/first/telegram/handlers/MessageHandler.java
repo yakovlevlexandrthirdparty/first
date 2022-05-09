@@ -47,18 +47,18 @@ public class MessageHandler {
         messageHandlerCash.saveBotCategoryState(userId, msgHandlerStage);
         //if state =...
         switch (msgHandlerStage.name()) {
-            case ("START"):
+            case "START":
                 return callbackQueryHandler.getMainMenuMessage(message.getChatId(), userId, new InlineKeyboardMarkup());
-            case ("CAR"):
-            case ("APARTMENT"):
-            case ("INPUT_DATES"):
+            case "CAR":
+            case "APARTMENT":
+            case "INPUT_DATES":
                 return enterDates(message, msgHandlerStage);
-            case ("INPUT_BEDROOMS"):
+            case "INPUT_BEDROOMS":
                 return enterBedRooms(message);
-            case ("INPUT_PRICES"):
+            case "INPUT_PRICES":
                 return enterPrices(message);
-            case ("APARTMENTS_LIST"):
-            case ("CAR_LIST"):
+            case "APARTMENTS_LIST":
+            case "CAR_LIST":
                 return getSendMessage(String.valueOf(chatId));
             default:
                 throw new IllegalStateException("Unexpected value: " + botState);

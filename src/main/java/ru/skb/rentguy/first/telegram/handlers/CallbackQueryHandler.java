@@ -12,6 +12,7 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMa
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import ru.skb.rentguy.first.cash.BotStateCash;
 import ru.skb.rentguy.first.cash.MessageHandlerCash;
+import ru.skb.rentguy.first.constants.bot.BotCallBackEnum;
 import ru.skb.rentguy.first.model.BotState;
 
 import java.util.ArrayList;
@@ -35,25 +36,25 @@ public class CallbackQueryHandler {
 
         String data = buttonQuery.getData();
         switch (data) {
-            case ("start"):
+            case "start":
                 callBackAnswer = getMainMenuMessage(chatId,userId, buttonQuery.getMessage().getReplyMarkup());
                 break;
-            case ("car"):
+            case "car":
                 callBackAnswer = getCallBackMenu(chatId,"### Раздел аренды автомобилей ###\n\nСледуйте пунктам меню:", List.of("Ввести даты начала/окончания аренды|inputDates","< Назад|start"));
                 botStateCash.saveBotState(userId,BotState.CAR);
                 break;
-            case ("apartment"):
+            case "apartment":
                 callBackAnswer = getCallBackMenu(chatId,"### Раздел аренды Квартир ###\n\nСледуйте пунктам меню:", List.of("Ввести даты заезда/выезда|inputDates","< Назад|start"));
                 botStateCash.saveBotState(userId,BotState.APARTMENT);
                 break;
-            case ("inputDates"):
+            case "inputDates":
                 callBackAnswer = new SendMessage(
                         String.valueOf(chatId),
                         (BotState.APARTMENT.name().equals(botStateCash.getBotStateMap().get(userId).name()) ? "### Раздел аренды Квартир ###":"### Раздел аренды автомобилей ###") +
                                 "\n\nВведите даты начала и окончания аренды в формате \n\nДД.ММ.ГГГГ-ДД.ММ.ГГГГ");
                 messageHandlerCash.saveBotCategoryState(userId, BotState.INPUT_DATES);
                 break;
-            case ("acceptDates"):
+            case "acceptDates":
                 if (BotState.APARTMENT.equals(botStateCash.getBotStateMap().get(userId))) {
                     callBackAnswer = new SendMessage(String.valueOf(chatId), "Введите количество комнат");
                     messageHandlerCash.saveBotCategoryState(userId, BotState.INPUT_BEDROOMS);
@@ -62,19 +63,18 @@ public class CallbackQueryHandler {
                     messageHandlerCash.saveBotCategoryState(userId, BotState.INPUT_PRICES);
                 }
                 break;
-            case ("acceptBedRooms"):
+            case "acceptBedRooms":
                 SendMessage sendMessage = new SendMessage();
                 sendMessage.setChatId(String.valueOf(chatId));
                 sendMessage.setText("Доступные варианты");
-                sendMessage.setReplyMarkup(getInlineMessageButtons(List.of(
-                        "Садовыая-Кудринская 6 | 3100Р/сут.|Просторный апартамент\n20т.р./сут",
-                        "Кривоколейный пер. 12 | 2000Р/сут.|Апартамент с видом на воду\n41т.р./сут",
-                        "Лужниковсктй пер. 22 | 2800Р/сут.|Апартамент с терассой\n80т.р./сут",
+                sendMessage.setReplyMarkup(getInlineMessageButtons(List.of("Садовыая-Кудринская д.6: 3100Р/сут.|Просторный апартамент\n20т.р./сут",
+                        "Кривоколейный пер. д.12: 2000Р/сут.|Апартамент с видом на воду\n41т.р./сут",
+                        "Лужниковсктй пер. д.22: 2800Р/сут.|Апартамент с терассой\n80т.р./сут",
                         "< В начало|start")));
                 callBackAnswer = sendMessage;
                 messageHandlerCash.saveBotCategoryState(userId, BotState.CAR_LIST);
                 break;
-            case ("acceptPrice"):
+            case "acceptPrice":
                 SendMessage sendMessage1 = new SendMessage();
                 sendMessage1.setChatId(String.valueOf(chatId));
                 sendMessage1.setText("Доступные варианты");
@@ -86,10 +86,11 @@ public class CallbackQueryHandler {
                 callBackAnswer = sendMessage1;
                 messageHandlerCash.saveBotCategoryState(userId, BotState.CAR_LIST);
                 break;
-            case ("rent"):
+            case "rent":
                 SendMessage sendMessage3 = new SendMessage();
                 sendMessage3.setChatId(String.valueOf(chatId));
                 sendMessage3.setText("Ваша зявка принята.\n\n В ближайшее время с вами свяжется менеджер для подтверждения бранирования.");
+                sendMessage3.setReplyMarkup(getInlineMessageButtons(List.of("< В начало|start")));
                 callBackAnswer = sendMessage3;
                 messageHandlerCash.saveBotCategoryState(userId, BotState.START);
                 break;
@@ -97,13 +98,10 @@ public class CallbackQueryHandler {
                 SendMessage sendMessage2 = new SendMessage();
                 sendMessage2.setChatId(String.valueOf(chatId));
                 sendMessage2.setText(data);
-                sendMessage2.setReplyMarkup(getInlineMessageButtons(List.of(
-                        "Забронировать|rent"
-                )));
                 if (BotState.APARTMENT.equals(botStateCash.getBotStateMap().get(userId))) {
-                    sendMessage2.setReplyMarkup(getInlineMessageButtons(List.of("< Назад|acceptBedRooms")));
+                    sendMessage2.setReplyMarkup(getInlineMessageButtons(List.of("Забронировать|rent","< Назад|acceptBedRooms")));
                 } else {
-                    sendMessage2.setReplyMarkup(getInlineMessageButtons(List.of("< Назад|acceptPrice")));
+                    sendMessage2.setReplyMarkup(getInlineMessageButtons(List.of("Забронировать|rent","< Назад|acceptPrice")));
                 }
                 callBackAnswer = sendMessage2;
                 break;
