@@ -55,7 +55,7 @@ public enum BotMessageEnum {
     EXCEPTION_TEMPLATE_WTF_MESSAGE("Нежиданная ошибка при попытке получить шаблон. Сам в шоке"),
 
     //прочие ошибки
-    EXCEPTION_ILLEGAL_MESSAGE("Нет, к такому меня не готовили! Я работаю или с текстом, или с файлом"),
+    EXCEPTION_ILLEGAL_MESSAGE("!"),
     EXCEPTION_WHAT_THE_FUCK("Что-то пошло не так. Обратитесь к программисту");
 
     private final String message;

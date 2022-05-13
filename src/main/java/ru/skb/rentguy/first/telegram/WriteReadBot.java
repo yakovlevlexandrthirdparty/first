@@ -19,26 +19,26 @@ import ru.skb.rentguy.first.model.BotState;
 import ru.skb.rentguy.first.telegram.handlers.CallbackQueryHandler;
 import ru.skb.rentguy.first.telegram.handlers.MessageHandler;
 
-import java.io.IOException;
 import java.util.Date;
 
 @Getter
 @Setter
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class WriteReadBot extends SpringWebhookBot {
-    String botPath;
-    String botUsername;
-    String botToken;
-    @Autowired
-    BotStateCash botStateCash;
-    @Autowired
-    MessageHandlerCash messageHandlerCash;
-    @Autowired
-    MessageHandler messageHandler;
-    @Autowired
-    CallbackQueryHandler callbackQueryHandler;
+    private String botPath;
+    private String botUsername;
+    private String botToken;
 
-    public WriteReadBot(SetWebhook setWebhook, MessageHandler messageHandler,CallbackQueryHandler callbackQueryHandler) {
+    @Autowired
+    private BotStateCash botStateCash;
+
+    @Autowired
+    private MessageHandlerCash messageHandlerCash;
+
+    private MessageHandler messageHandler;
+    private CallbackQueryHandler callbackQueryHandler;
+
+    public WriteReadBot(SetWebhook setWebhook, MessageHandler messageHandler, CallbackQueryHandler callbackQueryHandler) {
         super(setWebhook);
         this.messageHandler = messageHandler;
         this.callbackQueryHandler = callbackQueryHandler;
@@ -49,26 +49,25 @@ public class WriteReadBot extends SpringWebhookBot {
         try {
             return handleUpdate(update);
         } catch (IllegalArgumentException e) {
-            return new SendMessage(update.getMessage().getChatId().toString(),
-                    BotMessageEnum.EXCEPTION_ILLEGAL_MESSAGE.getMessage());
+            return SendMessage.builder()
+                    .chatId(update.getMessage().getChatId().toString())
+                    .text(BotMessageEnum.EXCEPTION_ILLEGAL_MESSAGE.getMessage() + " " + e.getMessage())
+                    .build();
         } catch (Exception e) {
             return new SendMessage(update.getMessage().getChatId().toString(),
                     BotMessageEnum.EXCEPTION_WHAT_THE_FUCK.getMessage());
         }
     }
 
-    private BotApiMethod<?> handleUpdate(Update update) throws IOException {
-        if(update.getMessage() != null &&update.getMessage().getFrom() != null){
-            System.out.println(new Date().toString()+ " " + update.getMessage().getFrom().getUserName() + " " + update.getMessage().getText());
+    private BotApiMethod<?> handleUpdate(Update update) {
+        if (update.hasMessage()) {
+            System.out.println("User>" + update.getMessage().getFrom().toString());
         }
         if (update.hasCallbackQuery()) {
             CallbackQuery callbackQuery = update.getCallbackQuery();
             return callbackQueryHandler.processCallbackQuery(callbackQuery);
-        } else {
-            Message message = update.getMessage();
-            if (message != null) {
-                return handleInputMessage(message);
-            }
+        } else if (update.hasMessage()) {
+            return handleInputMessage(update.getMessage());
         }
         return null;
     }
@@ -85,7 +84,7 @@ public class WriteReadBot extends SpringWebhookBot {
                 break;
             default:
                 botState = botStateCash.getBotStateMap().get(message.getFrom().getId()) == null ?
-                        BotState.START: botStateCash.getBotStateMap().get(message.getFrom().getId());
+                        BotState.START : botStateCash.getBotStateMap().get(message.getFrom().getId());
                 msgHandlerState = messageHandlerCash.getBotStateMap().get(message.getFrom().getId()) == null ?
                         BotState.START : messageHandlerCash.getBotStateMap().get(message.getFrom().getId());
         }
