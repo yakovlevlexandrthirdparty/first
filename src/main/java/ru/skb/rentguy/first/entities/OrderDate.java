@@ -2,16 +2,17 @@ package ru.skb.rentguy.first.entities;
 
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 
 import javax.persistence.*;
-import java.util.Collection;
 import java.util.Date;
 
 @Data
 @Entity
 @NoArgsConstructor
-@Table(name = "orders")
-public class Order {
+@Table(name = "order_dates")
+@ToString(exclude = {"id", "price"})
+public class OrderDate {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id")
@@ -20,14 +21,16 @@ public class Order {
     @Column(name="recipient_id")
     private Long recipientId;
 
-    @Column(name="advert_id")
-    private Long advertId;
+    @Column(name="date")
+    private Date date;
 
     @Column(name="state")
     private int state;
 
-    @OneToMany(
-            fetch = FetchType.EAGER,
-            mappedBy = "order")
-    private Collection<OrderDate> orderDates;
+    @Column(name = "advert_id")
+    private Long advertId;
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "order_id")
+    private Order order;
 }

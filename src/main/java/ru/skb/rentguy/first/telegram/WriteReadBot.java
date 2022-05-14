@@ -15,7 +15,9 @@ import org.telegram.telegrambots.starter.SpringWebhookBot;
 import ru.skb.rentguy.first.cash.BotStateCash;
 import ru.skb.rentguy.first.cash.MessageHandlerCash;
 import ru.skb.rentguy.first.constants.bot.BotMessageEnum;
+import ru.skb.rentguy.first.entities.User;
 import ru.skb.rentguy.first.model.BotState;
+import ru.skb.rentguy.first.repositories.UserRepository;
 import ru.skb.rentguy.first.telegram.handlers.CallbackQueryHandler;
 import ru.skb.rentguy.first.telegram.handlers.MessageHandler;
 
@@ -35,6 +37,9 @@ public class WriteReadBot extends SpringWebhookBot {
     @Autowired
     private MessageHandlerCash messageHandlerCash;
 
+    @Autowired
+    UserRepository userRepository;
+
     private MessageHandler messageHandler;
     private CallbackQueryHandler callbackQueryHandler;
 
@@ -49,25 +54,49 @@ public class WriteReadBot extends SpringWebhookBot {
         try {
             return handleUpdate(update);
         } catch (IllegalArgumentException e) {
+            e.printStackTrace();
             return SendMessage.builder()
-                    .chatId(update.getMessage().getChatId().toString())
-                    .text(BotMessageEnum.EXCEPTION_ILLEGAL_MESSAGE.getMessage() + " " + e.getMessage())
+                    .chatId(update.hasMessage()?String.valueOf(update.getMessage().getChatId()):String.valueOf(update.getCallbackQuery().getFrom().getId()))
+                    .text(BotMessageEnum.EXCEPTION_ILLEGAL_MESSAGE.getMessage()+" "+e.getMessage())
                     .build();
         } catch (Exception e) {
-            return new SendMessage(update.getMessage().getChatId().toString(),
-                    BotMessageEnum.EXCEPTION_WHAT_THE_FUCK.getMessage());
+            e.printStackTrace();
+            return SendMessage.builder()
+                    .chatId(update.hasMessage()?String.valueOf(update.getMessage().getChatId()):String.valueOf(update.getCallbackQuery().getFrom().getId()))
+                    .text(BotMessageEnum.EXCEPTION_WHAT_THE_FUCK.getMessage())
+                    .build();
         }
     }
 
     private BotApiMethod<?> handleUpdate(Update update) {
         if (update.hasMessage()) {
-            System.out.println("User>" + update.getMessage().getFrom().toString());
+            long userId = update.getMessage().getFrom().getId();
+            if (userRepository.findByTelegramId(userId) == null) {
+                System.out.println("NEW USER MS");
+                User user = new User();
+                user.setFirstName(update.getMessage().getFrom().getFirstName());
+                user.setLastName(update.getMessage().getFrom().getLastName());
+                user.setUserName(update.getMessage().getFrom().getUserName());
+                user.setTelegramId(userId);
+                User u = userRepository.save(user);
+                System.out.println("user id:" + u.getId() + " " + u.getTelegramId());
+            }
+            return handleInputMessage(update.getMessage());
         }
         if (update.hasCallbackQuery()) {
             CallbackQuery callbackQuery = update.getCallbackQuery();
+            long userId = update.getCallbackQuery().getFrom().getId();
+            if (userRepository.findByTelegramId(userId) == null) {
+                System.out.println("NEW USER CQ");
+                User user = new User();
+                user.setFirstName(update.getCallbackQuery().getFrom().getFirstName());
+                user.setLastName(update.getCallbackQuery().getFrom().getLastName());
+                user.setUserName(update.getCallbackQuery().getFrom().getUserName());
+                user.setTelegramId(userId);
+                User u = userRepository.save(user);
+                System.out.println("user id:" + u.getId() + " " + u.getTelegramId());
+            }
             return callbackQueryHandler.processCallbackQuery(callbackQuery);
-        } else if (update.hasMessage()) {
-            return handleInputMessage(update.getMessage());
         }
         return null;
     }

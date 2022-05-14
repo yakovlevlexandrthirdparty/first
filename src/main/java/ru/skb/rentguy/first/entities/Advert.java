@@ -24,6 +24,9 @@ public class Advert {
     @Column(name = "title")
     private String title;
 
+    @Column(name = "description")
+    private String description;
+
     @Column(name = "author_id")
     private Long authorId;
 

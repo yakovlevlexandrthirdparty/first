@@ -47,15 +47,6 @@ public class MessageHandler {
     public BotApiMethod<?> handle(Message message, BotState botState, BotState msgHandlerStage) {
         long userId = message.getFrom().getId();
         long chatId = message.getChatId();
-        System.out.println("STATE>>" + botState.name() + "|" + msgHandlerStage.name() + "|" + message.getText());
-        if (userRepository.findByTelegramId(userId)==null) {
-            System.out.println("NEW USER");
-            User user = new User();
-            user.setTelegramId(userId);
-            User u = userRepository.save(user);
-            System.out.println("u"+u.getId()+" "+u.getTelegramId());
-        }
-        System.out.println(userRepository.findByTelegramId(userId));
         botStateCash.saveBotState(userId, botState);
         messageHandlerCash.saveBotCategoryState(userId, msgHandlerStage);
         switch (msgHandlerStage.name()) {
@@ -70,7 +61,7 @@ public class MessageHandler {
                     return SendMessage.builder()
                             .chatId(String.valueOf(message.getChatId()))
                             .text("Заголовок: " + advertCash.getAdvertMap().get(userId).getTitle() + "\nВведите стоимость аренды в сутки:\n\nТолько цыфры")
-                            .replyMarkup(getInlineMessageButtons(List.of("<В главное меню::start")))
+                            .replyMarkup(getInlineMessageButtons(List.of("start::<В главное меню")))
                             .build();
                 } else {
                     throw new IllegalArgumentException("Заголовок слишком длинный.");
@@ -87,7 +78,7 @@ public class MessageHandler {
                     return SendMessage.builder()
                             .chatId(String.valueOf(message.getChatId()))
                             .text("Отлично обьявление создано!\n\n" + "Заголовок: " + advert1.getTitle() + "\nЦена: " + advert1.getPrice() + " Руб./сут.")
-                            .replyMarkup(getInlineMessageButtons(List.of("<В главное меню::start")))
+                            .replyMarkup(getInlineMessageButtons(List.of("start::<В главное меню")))
                             .build();
                 } else {
                     throw new IllegalArgumentException("Неверное значение попробуйте еще рас.");
@@ -113,19 +104,15 @@ public class MessageHandler {
         SendMessage sendMessage = new SendMessage();
         sendMessage.setChatId(String.valueOf(message.getChatId()));
         SimpleDateFormat simpleDateFormat = new SimpleDateFormat("dd.MM.yyyy");
-        String dates[] = message.getText().split("-");
-        String stringStartDate = dates[0];
-        String stringEndDate = dates[1];
+        String stringStartDate = message.getText();
         try {
             Date startDate = simpleDateFormat.parse(stringStartDate);
-            Date endDate = simpleDateFormat.parse(stringEndDate);
-            sendMessage.setText("Дата начала аренды: " + new SimpleDateFormat("EEE, d MMM yyyy", Locale.getDefault()).format(startDate) +
-                    "\nДата окончания аренды: " + new SimpleDateFormat("EEE, d MMM yyyy", Locale.getDefault()).format(endDate));
+            sendMessage.setText("Дата начала аренды: " + new SimpleDateFormat("EEE, d MMM yyyy", Locale.getDefault()).format(startDate));
         } catch (ParseException e) {
             sendMessage.setText("Нечитаемый формат, попробуйте еще рас");
             e.printStackTrace();
         }
-        sendMessage.setReplyMarkup(getInlineMessageButtons(List.of("Да, даты верны::acceptDates")));
+        sendMessage.setReplyMarkup(getInlineMessageButtons(List.of("acceptDates::Да, даты верны")));
         if (msgHandlerStage.equals(BotState.APARTMENT)) {
             messageHandlerCash.saveBotCategoryState(userId, BotState.INPUT_BEDROOMS);
         } else {
@@ -149,7 +136,7 @@ public class MessageHandler {
         SendMessage sendMessage = new SendMessage();
         sendMessage.setChatId(String.valueOf(message.getChatId()));
         sendMessage.setText("Подтвердите диапазон цен: от " + message.getText() + "₽");
-        sendMessage.setReplyMarkup(getInlineMessageButtons(List.of("Да, диапазон цен верный::acceptPrice")));
+        sendMessage.setReplyMarkup(getInlineMessageButtons(List.of("acceptPrice::Да, диапазон цен верный")));
         messageHandlerCash.saveBotCategoryState(userId, BotState.APARTMENTS_LIST);
         return sendMessage;
     }
@@ -159,8 +146,8 @@ public class MessageHandler {
                 .map(btnString -> {
                     String[] pl = btnString.split("::");
                     InlineKeyboardButton i = InlineKeyboardButton.builder()
-                            .text(pl[0])
-                            .callbackData(pl[1])
+                            .text(pl[1])
+                            .callbackData(pl[0])
                             .build();
                     List<InlineKeyboardButton> keyboardButtonsRow1 = new ArrayList<>();
                     keyboardButtonsRow1.add(i);
