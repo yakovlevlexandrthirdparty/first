@@ -118,11 +118,14 @@ public class CallbackQueryHandler {
                 botStateCash.saveBotState(userId, BotState.CAR);
                 break;
             case "myOrders":
+
+                // сделать значек оплачено, менять окончания и убрать заказы с 0 дней
                 List<String> btnList = myOrders.stream().map(order -> {
                     String title = advertRepository.findById(order.getAdvertId()).orElseThrow().getTitle();
                     SimpleDateFormat dt1 = new SimpleDateFormat("dd-MM-yyyyy");
-                    return "order#" + order.getId() + "#" + userRepository.findById(order.getRecipientId()).orElseThrow().getUserName() + "::" + title + " " + (order.getOrderDates().size()+1) +" дней";
+                    return "order#" + order.getId() + "#" + userRepository.findById(order.getRecipientId()).orElseThrow().getUserName() + "::№" + order.getId() + " " + title + " " + order.getOrderDates().size() + " дней";
                 }).collect(Collectors.toList());
+
                 btnList.add("car::<Назад");
                 callBackAnswer = getCallBackMenu(msgId, chatId, "Закявки к вашим обьявлениям:", btnList);
                 break;
@@ -187,20 +190,20 @@ public class CallbackQueryHandler {
                     callBackAnswer = EditMessageText.builder()
                             .chatId(String.valueOf(chatId))
                             .messageId(msgId)
-                            .text("✅ Ваша зявка #"+order.getId()+" принята.\n\nВ ближайшее время с вами свяжется наш менеджер для подтверждения бранирования.\n\nСпасибо что воспользовались нашим сервисом.\uD83E\uDD70")
+                            .text("✅ Ваша зявка #" + order.getId() + " принята.\n\nВ ближайшее время с вами свяжется наш менеджер для подтверждения бранирования.\n\nСпасибо что воспользовались нашим сервисом.\uD83E\uDD70")
                             .replyMarkup(getInlineMessageButtons(List.of("start::<Назад")))
                             .build();
                 }
                 System.out.println("default data:" + buttonQuery.getData());
                 String[] dataArr1 = data.split("#");
-                Advert ad = advertRepository.findById(Long.parseLong(dataArr1[1])).orElseThrow();
                 if (data.startsWith("advert")) {
+                    Advert ad = advertRepository.findById(Long.parseLong(dataArr1[1])).orElseThrow();
                     if (orderCash.getOrderMap().get(userId) == null) {
                         Order order = new Order();
                         order.setRecipientId(userRepository.findByTelegramId(userId).getId());
                         order.setAdvertId(ad.getId());
                         order.setOrderDates(new ArrayList<OrderDate>());
-                        orderCash.saveOrder(userId,order);
+                        orderCash.saveOrder(userId, order);
                         Order resOrder = orderRepository.save(order);
                     }
                     String advertId = ad.getId().toString();
@@ -216,9 +219,15 @@ public class CallbackQueryHandler {
                     today = calendar.getTime();
                     Set<Date> ordersDates = orderCash.getOrderMap().get(userId).getOrderDates().stream().filter(el -> advertId.equals(el.getAdvertId().toString())).map(OrderDate::getDate).collect(Collectors.toSet());
                     cal.setTime(today);
+                    List<Order> paidOrders = orders.stream().filter(order -> order.getState() == 1).collect(Collectors.toList());
+                    Set<OrderDate> paidOrderDates = new HashSet<>();
+                    paidOrders.stream().map(Order::getOrderDates).forEach(paidOrderDates::addAll);
+                    Set<Date> datePaidOrderDates = paidOrderDates.stream().map(OrderDate::getDate).collect(Collectors.toSet());
                     for (int i = 0; i < 10; i++) {
+                        if (!datePaidOrderDates.contains(cal.getTime())) {
+                            btns1.add(ordersDates.contains(cal.getTime()) ? "rent#" + advertId + "#" + cal.getTimeInMillis() + "::✅" + cal.getTime() : "rent#" + advertId + "#" + cal.getTimeInMillis() + "::" + cal.getTime());
+                        }
                         cal.add(Calendar.DATE, 1);
-                        btns1.add(ordersDates.contains(cal.getTime()) ? "rent#" + advertId + "#" + cal.getTimeInMillis() + "::✅" + cal.getTime() : "rent#" + advertId + "#" + cal.getTimeInMillis() + "::" + cal.getTime());
                     }
                     btns1.add("adverts::<Назад");
                     callBackAnswer = EditMessageText.builder()
@@ -229,12 +238,26 @@ public class CallbackQueryHandler {
                             .build();
                     break;
                 }
-                if (data.startsWith("order")) {
+                if (data.startsWith("paid")) {
+                    Order order = orderRepository.findById(Long.parseLong(dataArr1[1])).orElseThrow();
+                    order.setState(1);
+                    orderRepository.save(order);
                     callBackAnswer = EditMessageText.builder()
                             .chatId(String.valueOf(chatId))
                             .messageId(msgId)
-                            .text("@" + dataArr1[2])
-                            .replyMarkup(getInlineMessageButtons(List.of("myOrders::<Назад")))
+                            .text("✅ Вы подтвердили оплату заказа #" + order.getId() + "\n\nДаты по заявке исчезли из доступных в обьявлении.")
+                            .replyMarkup(getInlineMessageButtons(List.of("start::<Назад")))
+                            .build();
+                }
+                if (data.startsWith("order")) {
+                    Order order = orderRepository.findById(Long.parseLong(dataArr1[1])).orElseThrow();
+                    String title = advertRepository.findById(order.getAdvertId()).orElseThrow().getTitle();
+                    String startdate = order.getOrderDates().iterator().next().getDate().toString();
+                    callBackAnswer = EditMessageText.builder()
+                            .chatId(String.valueOf(chatId))
+                            .messageId(msgId)
+                            .text("Подробности заявки:\n\n" + "Лот:" + title + "\n\nДата начала аренды:" + startdate + "\n\nНикнейм для связи: @" + dataArr1[2] + " \n\nКак получите оплату нажмите на кнопку \"Оплачено\" и даты исчезнут из списка доступных\uD83D\uDC47\uD83C\uDFFD")
+                            .replyMarkup(getInlineMessageButtons(List.of("paid#" + order.getId() + "::\uD83D\uDC49\uD83C\uDFFDОплачено\uD83D\uDC48\uD83C\uDFFD", "myOrders::<Назад")))
                             .build();
                     break;
                 }
@@ -242,7 +265,7 @@ public class CallbackQueryHandler {
                     String advertId = dataArr1[1];
                     String dateFromBtn = dataArr1[2];
                     Date dateBtn = new Date(Long.parseLong(dateFromBtn));
-                    //Advert ad = advertRepository.findById(Long.parseLong(advertId)).orElseThrow();
+                    Advert ad = advertRepository.findById(Long.parseLong(advertId)).orElseThrow();
                     OrderDate orderDate = new OrderDate();
                     Date today = new Date();
                     Calendar calendar = Calendar.getInstance();
@@ -264,9 +287,15 @@ public class CallbackQueryHandler {
                     List<String> btns1 = new ArrayList<>();
                     Calendar cal = Calendar.getInstance();
                     cal.setTime(today);
+                    List<Order> paidOrders = orders.stream().filter(order -> order.getState() == 1).collect(Collectors.toList());
+                    Set<OrderDate> paidOrderDates = new HashSet<>();
+                    paidOrders.stream().map(Order::getOrderDates).forEach(paidOrderDates::addAll);
+                    Set<Date> datePaidOrderDates = paidOrderDates.stream().map(OrderDate::getDate).collect(Collectors.toSet());
                     for (int i = 0; i < 10; i++) {
-                        cal.add(Calendar.DATE, 1);
-                        btns1.add(ordersDates.contains(cal.getTime()) ? "rent#" + advertId + "#" + cal.getTimeInMillis() + "::✅" + cal.getTime() : "rent#" + advertId + "#" + cal.getTimeInMillis() + "::" + cal.getTime());
+                        if (!paidOrderDates.contains(cal.getTime())) {
+                            btns1.add(ordersDates.contains(cal.getTime()) ? "rent#" + advertId + "#" + cal.getTimeInMillis() + "::✅" + cal.getTime() : "rent#" + advertId + "#" + cal.getTimeInMillis() + "::" + cal.getTime());
+                            cal.add(Calendar.DATE, 1);
+                        }
                     }
                     btns1.add("done#" + advertId + "::Готово");
                     callBackAnswer = EditMessageText.builder()

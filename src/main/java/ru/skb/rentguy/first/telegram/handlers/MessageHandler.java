@@ -77,7 +77,7 @@ public class MessageHandler {
                     advertCash.getAdvertMap().values().forEach(System.out::println);
                     return SendMessage.builder()
                             .chatId(String.valueOf(message.getChatId()))
-                            .text("Отлично обьявление создано!\n\n" + "Заголовок: " + advert1.getTitle() + "\nЦена: " + advert1.getPrice() + " Руб./сут.")
+                            .text("✅ Отлично обьявление создано!\n\n" + "Заголовок: " + advert1.getTitle() + "\nЦена: " + advert1.getPrice() + " Руб./сут.")
                             .replyMarkup(getInlineMessageButtons(List.of("start::<В главное меню")))
                             .build();
                 } else {
