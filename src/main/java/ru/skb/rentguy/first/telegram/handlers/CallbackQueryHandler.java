@@ -121,7 +121,7 @@ public class CallbackQueryHandler {
                 List<Order> myOrders1 = orders1.stream().filter(el -> {
                     return advertRepository.findById(el.getAdvertId()).orElseThrow().getAuthorId() == userRepository.findByTelegramId(userId).getId();
                 }).collect(Collectors.toList());
-                List<Order> orderList = myOrders1.stream().filter(order -> order.getState() == 1).collect(Collectors.toList());
+                List<Order> orderList = myOrders1.stream().filter(order -> order.getOrderDates().size() > 0).collect(Collectors.toList());
                 List<String> btnList = orderList.stream().map(order -> {
                     String title = advertRepository.findById(order.getAdvertId()).orElseThrow().getTitle();
                     return "order#" + order.getId() + "#" + userRepository.findById(order.getRecipientId()).orElseThrow().getUserName() + "::№" + order.getId() + " " + title + " " + BtnUtils.daysNaming(order.getOrderDates().size()) + " " + BtnUtils.paidOrder(order);
@@ -223,7 +223,7 @@ public class CallbackQueryHandler {
                     cal.setTime(today);
 
 
-                    List<Order> paidOrders = orders.stream().filter(order -> order.getState() == 1).collect(Collectors.toList());
+                    List<Order> paidOrders = orders.stream().filter(order -> order.getState() == 1 && order.getAdvertId() == Long.parseLong(advertId)).collect(Collectors.toList());
                     Set<OrderDate> paidOrderDates = new HashSet<>();
                     paidOrders.stream().map(Order::getOrderDates).forEach(paidOrderDates::addAll);
                     Set<Date> datePaidOrderDates = paidOrderDates.stream().map(OrderDate::getDate).collect(Collectors.toSet());
@@ -299,7 +299,7 @@ public class CallbackQueryHandler {
                     Calendar cal = Calendar.getInstance();
                     cal.setTime(today);
 
-                    List<Order> paidOrders = orders3.stream().filter(ord -> ord.getState() == 1).collect(Collectors.toList());
+                    List<Order> paidOrders = orders3.stream().filter(ord -> ord.getState() == 1 && ord.getAdvertId() == Long.parseLong(advertId)).collect(Collectors.toList());
                     Set<OrderDate> paidOrderDates = new HashSet<>();
                     paidOrders.stream().map(Order::getOrderDates).forEach(paidOrderDates::addAll);
                     Set<Date> datePaidOrderDates = paidOrderDates.stream().map(OrderDate::getDate).collect(Collectors.toSet());

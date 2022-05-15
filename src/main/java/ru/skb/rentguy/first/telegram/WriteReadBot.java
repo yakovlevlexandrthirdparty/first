@@ -5,12 +5,17 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.experimental.FieldDefaults;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.telegram.telegrambots.meta.api.methods.AnswerInlineQuery;
 import org.telegram.telegrambots.meta.api.methods.BotApiMethod;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.updates.SetWebhook;
 import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
+import org.telegram.telegrambots.meta.api.objects.inlinequery.InlineQuery;
+import org.telegram.telegrambots.meta.api.objects.inlinequery.result.InlineQueryResult;
+import org.telegram.telegrambots.meta.api.objects.inlinequery.result.InlineQueryResultArticle;
+import org.telegram.telegrambots.meta.api.objects.inlinequery.result.InlineQueryResultGif;
 import org.telegram.telegrambots.starter.SpringWebhookBot;
 import ru.skb.rentguy.first.cash.BotStateCash;
 import ru.skb.rentguy.first.cash.MessageHandlerCash;
@@ -22,6 +27,7 @@ import ru.skb.rentguy.first.telegram.handlers.CallbackQueryHandler;
 import ru.skb.rentguy.first.telegram.handlers.MessageHandler;
 
 import java.util.Date;
+import java.util.List;
 
 @Getter
 @Setter
