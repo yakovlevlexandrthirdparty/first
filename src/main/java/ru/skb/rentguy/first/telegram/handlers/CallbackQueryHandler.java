@@ -40,9 +40,6 @@ public class CallbackQueryHandler {
     private static final String TEXT_1 = "Просторный апартамент\n20т.р./сут::Садовыая-Кудринская д.6: 3100Р/сут.";
     private static final String TEXT_2 = "Апартамент с видом на воду\n41т.р./сут::Кривоколейный пер. д.12: 2000Р/сут.";
     private static final String TEXT_3 = "Апартамент с терассой\n80т.р./сут::Лужниковсктй пер. д.22: 2800Р/сут.";
-    private static final String TEXT_4 = "Mercedes-Benz S63 coupe\n20т.р./сут::Mercedes-Benz S63 coupe 20т.р./сут";
-    private static final String TEXT_5 = "Lamborghini aventador svj\n41т.р./сут::Lamborghini aventador svj 41т.р./сут";
-    private static final String TEXT_6 = "Ferrari sf90 stradale 80т.р./сут::Ferrari sf90 stradale\n80т.р./сут";
     private static final String HEADER_AUTO = "\uD83C\uDFCE Раздел аренды автомобилей\n\nТут вы можете посмотреть доступные автомобили эконом, бзнес и премиум класса.";
     private static final String HEADER_APT = "\uD83C\uDFE1 Раздел аренды Квартир\n\nТут вы можете посмотреть доступныое жилье эконом, бзнес и премиум класса.";
     private static final String BACK = "start::<В начало";
@@ -87,10 +84,6 @@ public class CallbackQueryHandler {
 
         String data = buttonQuery.getData();
         String[] dataArr = data.split("::");
-        List<Order> orders = (List<Order>) orderRepository.findAll();
-        List<Order> myOrders = orders.stream().filter(el -> {
-            return advertRepository.findById(el.getAdvertId()).orElseThrow().getAuthorId() == userRepository.findByTelegramId(userId).getId();
-        }).collect(Collectors.toList());
         switch (dataArr[0]) {
             case START_CASE:
                 callBackAnswer = getMainMenuMessage(buttonQuery.getMessage());
@@ -107,7 +100,12 @@ public class CallbackQueryHandler {
                 //TODO : if has advert add string Увас есть n обьявление(й), его нет в списке
                 callBackAnswer = getCallBackMenu(msgId, chatId, "\uD83C\uDFCE Доступные автомобили эконом, бизнес и премиум класса", btns);
                 break;
-            case CAR_CASE:
+            case "car":
+                List<Order> orders2 = (List<Order>) orderRepository.findAll();
+                Long userIdD = userRepository.findByTelegramId(userId).getId();
+                List<Order> myOrders = orders2.stream().filter(el -> {
+                    return advertRepository.findById(el.getAdvertId()).orElseThrow().getAuthorId() == userIdD;
+                }).collect(Collectors.toList());
                 List<String> btnList1 = new ArrayList<>();
                 btnList1.add("adverts::Объявления");
                 btnList1.add("makeAdvert::\uD83D\uDCB8 Создать обьявление");
@@ -119,11 +117,11 @@ public class CallbackQueryHandler {
                 botStateCash.saveBotState(userId, BotState.CAR);
                 break;
             case "myOrders":
-
-                //убрать заказы с 0 дней
-                List<Order> orderList = myOrders.stream().filter(order -> order.getState() == 1).collect(Collectors.toList());
-                // сделать значек оплачено, менять окончания
-
+                List<Order> orders1 = (List<Order>) orderRepository.findAll();
+                List<Order> myOrders1 = orders1.stream().filter(el -> {
+                    return advertRepository.findById(el.getAdvertId()).orElseThrow().getAuthorId() == userRepository.findByTelegramId(userId).getId();
+                }).collect(Collectors.toList());
+                List<Order> orderList = myOrders1.stream().filter(order -> order.getState() == 1).collect(Collectors.toList());
                 List<String> btnList = orderList.stream().map(order -> {
                     String title = advertRepository.findById(order.getAdvertId()).orElseThrow().getTitle();
                     return "order#" + order.getId() + "#" + userRepository.findById(order.getRecipientId()).orElseThrow().getUserName() + "::№" + order.getId() + " " + title + " " + BtnUtils.daysNaming(order.getOrderDates().size()) + " " + BtnUtils.paidOrder(order);
@@ -200,6 +198,7 @@ public class CallbackQueryHandler {
                 System.out.println("default data:" + buttonQuery.getData());
                 String[] dataArr1 = data.split("#");
                 if (data.startsWith("advert")) {
+                    List<Order> orders = (List<Order>) orderRepository.findAll();
                     Advert ad = advertRepository.findById(Long.parseLong(dataArr1[1])).orElseThrow();
                     if (orderCash.getOrderMap().get(userId) == null) {
                         Order order = new Order();
@@ -274,6 +273,7 @@ public class CallbackQueryHandler {
                     break;
                 }
                 if (data.startsWith("rent")) {
+                    List<Order> orders3 = (List<Order>) orderRepository.findAll();
                     String advertId = dataArr1[1];
                     String dateFromBtn = dataArr1[2];
                     Date dateBtn = new Date(Long.parseLong(dateFromBtn));
@@ -299,7 +299,7 @@ public class CallbackQueryHandler {
                     Calendar cal = Calendar.getInstance();
                     cal.setTime(today);
 
-                    List<Order> paidOrders = orders.stream().filter(ord -> ord.getState() == 1).collect(Collectors.toList());
+                    List<Order> paidOrders = orders3.stream().filter(ord -> ord.getState() == 1).collect(Collectors.toList());
                     Set<OrderDate> paidOrderDates = new HashSet<>();
                     paidOrders.stream().map(Order::getOrderDates).forEach(paidOrderDates::addAll);
                     Set<Date> datePaidOrderDates = paidOrderDates.stream().map(OrderDate::getDate).collect(Collectors.toSet());
@@ -363,7 +363,7 @@ public class CallbackQueryHandler {
 
         List<InlineKeyboardButton> keyboardButtonsRow1 = new ArrayList<>();
         keyboardButtonsRow1.add(carBtn);
-        keyboardButtonsRow1.add(apartmentBtn);
+        //keyboardButtonsRow1.add(apartmentBtn);
 
         List<List<InlineKeyboardButton>> rowList = new ArrayList<>();
         rowList.add(keyboardButtonsRow1);
