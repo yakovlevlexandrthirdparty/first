@@ -6,13 +6,21 @@ import lombok.SneakyThrows;
 import lombok.experimental.FieldDefaults;
 import org.aspectj.weaver.ast.Or;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
+import org.springframework.util.ResourceUtils;
 import org.telegram.telegrambots.meta.api.methods.BotApiMethod;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.methods.send.SendPhoto;
+import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageMedia;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageReplyMarkup;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
 import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
+import org.telegram.telegrambots.meta.api.objects.InputFile;
 import org.telegram.telegrambots.meta.api.objects.Message;
+import org.telegram.telegrambots.meta.api.objects.MessageEntity;
+import org.telegram.telegrambots.meta.api.objects.media.InputMedia;
+import org.telegram.telegrambots.meta.api.objects.media.InputMediaPhoto;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import ru.skb.rentguy.first.cash.AdvertCash;
@@ -22,25 +30,27 @@ import ru.skb.rentguy.first.cash.OrderCash;
 import ru.skb.rentguy.first.entities.Advert;
 import ru.skb.rentguy.first.entities.Order;
 import ru.skb.rentguy.first.entities.OrderDate;
+import ru.skb.rentguy.first.entities.User;
 import ru.skb.rentguy.first.model.BotState;
 import ru.skb.rentguy.first.repositories.AdvertRepository;
 import ru.skb.rentguy.first.repositories.OrderDateRepository;
 import ru.skb.rentguy.first.repositories.OrderRepository;
 import ru.skb.rentguy.first.repositories.UserRepository;
 import ru.skb.rentguy.first.telegram.BtnUtils;
+import ru.skb.rentguy.first.telegram.WriteReadBot;
 
+import java.io.File;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.stream.Collectors;
 
 @Component
-@FieldDefaults(makeFinal = true, level = AccessLevel.PRIVATE)
-@RequiredArgsConstructor
+@FieldDefaults(level = AccessLevel.PRIVATE)
 public class CallbackQueryHandler {
     private static final String TEXT_1 = "Просторный апартамент\n20т.р./сут::Садовыая-Кудринская д.6: 3100Р/сут.";
     private static final String TEXT_2 = "Апартамент с видом на воду\n41т.р./сут::Кривоколейный пер. д.12: 2000Р/сут.";
     private static final String TEXT_3 = "Апартамент с терассой\n80т.р./сут::Лужниковсктй пер. д.22: 2800Р/сут.";
-    private static final String HEADER_AUTO = "\uD83C\uDFCE Раздел аренды автомобилей\n\nТут вы можете посмотреть доступные автомобили эконом, бзнес и премиум класса.";
+    private static final String HEADER_AUTO = "\uD83C\uDFE1 Раздел аренды Квартир\n\nТут вы можете посмотреть доступное жилье эконом, бзнес и премиум класса.";
     private static final String HEADER_APT = "\uD83C\uDFE1 Раздел аренды Квартир\n\nТут вы можете посмотреть доступныое жилье эконом, бзнес и премиум класса.";
     private static final String BACK = "start::<В начало";
     private static final String DONE = "✅ Ваша зявка принята.\n\nВ ближайшее время с вами свяжется наш менеджер для подтверждения бранирования.\n\nСпасибо что воспользовались нашим сервисом.\uD83E\uDD70";
@@ -56,22 +66,37 @@ public class CallbackQueryHandler {
     private static final String RENT_CASE = "rent#";
     private static final String VACANCY_ORDER = "Доступные варианты";
 
-    @Autowired
+    public CallbackQueryHandler(BotStateCash botStateCash, MessageHandlerCash messageHandlerCash, AdvertCash advertCash, AdvertRepository advertRepository, UserRepository userRepository, OrderDateRepository orderDateRepository, OrderRepository orderRepository, OrderCash orderCash, @Lazy WriteReadBot writeReadBot) {
+        this.botStateCash = botStateCash;
+        this.messageHandlerCash = messageHandlerCash;
+        this.advertCash = advertCash;
+        this.advertRepository = advertRepository;
+        this.userRepository = userRepository;
+        this.orderDateRepository = orderDateRepository;
+        this.orderRepository = orderRepository;
+        this.orderCash = orderCash;
+        this.writeReadBot = writeReadBot;
+    }
+
     private final BotStateCash botStateCash;
-    @Autowired
+
     private final MessageHandlerCash messageHandlerCash;
-    @Autowired
+
     private final AdvertCash advertCash;
-    @Autowired
+
     private final AdvertRepository advertRepository;
-    @Autowired
+
     private final UserRepository userRepository;
-    @Autowired
+
     private final OrderDateRepository orderDateRepository;
-    @Autowired
+
     private final OrderRepository orderRepository;
-    @Autowired
+
     private final OrderCash orderCash;
+
+    private final WriteReadBot writeReadBot;
+    private List<Order> orders2 = new ArrayList();
+    private Map<Long, List<Order>> userOrders = new HashMap<>();
 
     @SneakyThrows
     public BotApiMethod<?> processCallbackQuery(CallbackQuery buttonQuery) {
@@ -98,18 +123,22 @@ public class CallbackQueryHandler {
                 }).collect(Collectors.toList());
                 btns.add("car::<Назад");
                 //TODO : if has advert add string Увас есть n обьявление(й), его нет в списке
-                callBackAnswer = getCallBackMenu(msgId, chatId, "\uD83C\uDFCE Доступные автомобили эконом, бизнес и премиум класса", btns);
+                callBackAnswer = getCallBackMenu(msgId, chatId, "\uD83C\uDFE1 Доступное жильё эконом, бизнес и премиум класса", btns);
                 break;
             case "car":
-                List<Order> orders2 = (List<Order>) orderRepository.findAll();
+                if (orders2.isEmpty()) {
+                    orders2 = (List<Order>) orderRepository.findAll();
+                }
                 Long userIdD = userRepository.findByTelegramId(userId).getId();
-                List<Order> myOrders = orders2.stream().filter(el -> {
-                    return advertRepository.findById(el.getAdvertId()).orElseThrow().getAuthorId() == userIdD;
-                }).collect(Collectors.toList());
+                if (!userOrders.containsKey(userId)) {
+                    userOrders.put(userId, orders2.stream().filter(el -> {
+                        return advertRepository.findById(el.getAdvertId()).orElseThrow().getAuthorId() == userIdD;
+                    }).collect(Collectors.toList()));
+                }
                 List<String> btnList1 = new ArrayList<>();
                 btnList1.add("adverts::Объявления");
                 btnList1.add("makeAdvert::\uD83D\uDCB8 Создать обьявление");
-                if (!myOrders.isEmpty()) {
+                if (!userOrders.get(userId).isEmpty()) {
                     btnList1.add("myOrders::\uD83D\uDCC4 Ордера");
                 }
                 btnList1.add("backT::<Назад");
@@ -117,11 +146,7 @@ public class CallbackQueryHandler {
                 botStateCash.saveBotState(userId, BotState.CAR);
                 break;
             case "myOrders":
-                List<Order> orders1 = (List<Order>) orderRepository.findAll();
-                List<Order> myOrders1 = orders1.stream().filter(el -> {
-                    return advertRepository.findById(el.getAdvertId()).orElseThrow().getAuthorId() == userRepository.findByTelegramId(userId).getId();
-                }).collect(Collectors.toList());
-                List<Order> orderList = myOrders1.stream().filter(order -> order.getOrderDates().size() > 0).collect(Collectors.toList());
+                List<Order> orderList = userOrders.get(userId).stream().filter(order -> order.getOrderDates().size() > 0).collect(Collectors.toList());
                 List<String> btnList = orderList.stream().map(order -> {
                     String title = advertRepository.findById(order.getAdvertId()).orElseThrow().getTitle();
                     return "order#" + order.getId() + "#" + userRepository.findById(order.getRecipientId()).orElseThrow().getUserName() + "::№" + order.getId() + " " + title + " " + BtnUtils.daysNaming(order.getOrderDates().size()) + " " + BtnUtils.paidOrder(order);
@@ -135,6 +160,8 @@ public class CallbackQueryHandler {
                 messageHandlerCash.saveBotCategoryState(userId, BotState.INPUT_ADVERT_TITLE);
                 advertCash.saveAdvert(userId, new Advert());
                 break;
+            case "hi":
+                callBackAnswer = getCallBackMenu(msgId, chatId, "", List.of("C"));
             case APARTMENT_CASE:
                 callBackAnswer = getCallBackMenu(msgId, chatId, HEADER_APT + "\n\nСледуйте пунктам меню:", List.of("INPUT_DATES_CASE::Ввести даты заезда", "backT::<Назад"));
                 botStateCash.saveBotState(userId, BotState.APARTMENT);
@@ -194,12 +221,21 @@ public class CallbackQueryHandler {
                             .text("✅ Ваша зявка #" + order.getId() + " принята.\n\nВ ближайшее время с вами свяжется наш менеджер для подтверждения бранирования.\n\nСпасибо что воспользовались нашим сервисом.\uD83E\uDD70")
                             .replyMarkup(getInlineMessageButtons(List.of("start::<Назад")))
                             .build();
+                    User user = userRepository.findById(advertRepository.findById(order.getAdvertId()).get().getAuthorId()).orElseThrow();
+                    writeReadBot.execute(SendMessage.builder()
+                            .chatId(user.getTelegramId().toString())
+                            .text("По вашему обьявлению поступил заказ")
+                            .build());
                 }
                 System.out.println("default data:" + buttonQuery.getData());
                 String[] dataArr1 = data.split("#");
                 if (data.startsWith("advert")) {
                     List<Order> orders = (List<Order>) orderRepository.findAll();
                     Advert ad = advertRepository.findById(Long.parseLong(dataArr1[1])).orElseThrow();
+//                    if (ad.getTitle().contains("SF90")) {
+//                        System.out.println("<<<<<<");
+//                        writeReadBot.sendPhoto(String.valueOf(chatId), "C:\\Users\\PC12\\IdeaProjects\\first\\src\\main\\resources\\static\\60f7b38ffd2ee1629baa443e.jpg");
+//                    }
                     if (orderCash.getOrderMap().get(userId) == null) {
                         Order order = new Order();
                         order.setRecipientId(userRepository.findByTelegramId(userId).getId());
@@ -233,13 +269,25 @@ public class CallbackQueryHandler {
                         }
                         cal.add(Calendar.DATE, 1);
                     }
-
-
                     btns1.add("adverts::<Назад");
+//                    File file = ResourceUtils.getFile(fileName);
+//                    InputFile inputFile = new InputFile(file);
+//                    SendPhoto sp = new SendPhoto();
+//                    sp.setPhoto(inputFile);
+//                    sp.setChatId(chatId);
+//                    InputMedia inputMedia = new InputMediaPhoto();
+//                    inputMedia.setMedia(file,"s.png");
+//                    inputMedia.setCaption(ad.getTitle());
+//                    callBackAnswer = EditMessageMedia.builder()
+//                            .chatId(String.valueOf(chatId))
+//                            .messageId(msgId)
+//                            .media(inputMedia)
+//                            .replyMarkup(getInlineMessageButtons(btns1))
+//                            .build();
                     callBackAnswer = EditMessageText.builder()
                             .chatId(String.valueOf(chatId))
                             .messageId(msgId)
-                            .text(ad.getTitle() + "\n" + ad.getPrice() + " руб./сут.\n\n" + "Выбирите доступные даты\uD83D\uDC47\uD83C\uDFFD")
+                            .text(ad.getDescription() + "\n" + ad.getTitle() + "\n" + ad.getPrice() + " руб./сут.\n\n" + "Выбирите доступные даты\uD83D\uDC47\uD83C\uDFFD")
                             .replyMarkup(getInlineMessageButtons(btns1))
                             .build();
                     break;
@@ -316,7 +364,7 @@ public class CallbackQueryHandler {
                             .chatId(String.valueOf(chatId))
                             .messageId(msgId)
                             .replyMarkup(getInlineMessageButtons(btns1))
-                            .text(ad.getTitle() + "\n" + ad.getPrice() + " руб./сут.\n\n" + "Выбирите доступные даты\uD83D\uDC47\uD83C\uDFFD")
+                            .text(ad.getDescription() + "\n" + ad.getTitle() + "\n" + ad.getPrice() + " руб./сут.\n\n" + "Выбирите доступные даты\uD83D\uDC47\uD83C\uDFFD")
                             .build();
                     messageHandlerCash.saveBotCategoryState(userId, BotState.START);
                     break;
@@ -354,7 +402,7 @@ public class CallbackQueryHandler {
     public InlineKeyboardMarkup getInlineMessageButtons1() {
         InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
         InlineKeyboardButton carBtn = new InlineKeyboardButton();
-        carBtn.setText("Автомобиль");
+        carBtn.setText("Жильё");
         carBtn.setCallbackData(CAR_CASE);
 
         InlineKeyboardButton apartmentBtn = new InlineKeyboardButton();
@@ -372,7 +420,7 @@ public class CallbackQueryHandler {
         return inlineKeyboardMarkup;
     }
 
-    public InlineKeyboardMarkup getInlineMessageButtons(List<String> btnList) {
+    public static InlineKeyboardMarkup getInlineMessageButtons(List<String> btnList) {
         List<List<InlineKeyboardButton>> rowList2 = btnList.stream()
                 .map(btnString -> {
                     String[] pl = btnString.split("::");

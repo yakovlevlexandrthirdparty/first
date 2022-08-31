@@ -56,7 +56,21 @@ public class MessageHandler {
                 if (message.getText().length() < 150) {
                     Advert advert = advertCash.getAdvertMap().get(userId);
                     advert.setTitle(message.getText());
+                    advert.setAuthorId(userRepository.findByTelegramId(userId).getId());
                     advertCash.saveAdvert(userId, advert);
+                    messageHandlerCash.saveBotCategoryState(userId, BotState.INPUT_ADVERT_URL);
+                    return SendMessage.builder()
+                            .chatId(String.valueOf(message.getChatId()))
+                            .text("Заголовок: " + advertCash.getAdvertMap().get(userId).getTitle() + "\nВставьте ссылку на изображение.")
+                            .replyMarkup(getInlineMessageButtons(List.of("start::<В главное меню")))
+                            .build();
+                } else {
+                    throw new IllegalArgumentException("Заголовок слишком длинный.");
+                }
+            case "INPUT_ADVERT_URL":
+                Advert advert2 = advertCash.getAdvertMap().get(userId);
+                if(true){
+                    advert2.setDescription(message.getText());
                     messageHandlerCash.saveBotCategoryState(userId, BotState.INPUT_ADVERT_PRICE);
                     return SendMessage.builder()
                             .chatId(String.valueOf(message.getChatId()))
@@ -64,13 +78,12 @@ public class MessageHandler {
                             .replyMarkup(getInlineMessageButtons(List.of("start::<В главное меню")))
                             .build();
                 } else {
-                    throw new IllegalArgumentException("Заголовок слишком длинный.");
+                    throw new IllegalArgumentException("Недопустимый формат ссылки, пробуйте еще.");
                 }
             case "INPUT_ADVERT_PRICE":
                 Advert advert1 = advertCash.getAdvertMap().get(userId);
                 if (message.getText().matches("^[0-9]+$")) {
                     advert1.setPrice(Double.parseDouble(message.getText()));
-                    advert1.setAuthorId(userRepository.findByTelegramId(userId).getId());
                     advertCash.saveAdvert(userId, advert1);
                     Advert advert = advertRepository.save(advert1);
                     System.out.println(">>" + advert.getAuthorId() + " " + advert.getTitle() + " " + advert.getPrice());
@@ -94,6 +107,11 @@ public class MessageHandler {
             case "APARTMENTS_LIST":
             case "CAR_LIST":
                 return getSendMessage(String.valueOf(chatId));
+            case "EX":
+                return SendMessage.builder()
+                        .chatId(String.valueOf(chatId))
+                        .text("V")
+                        .build();
             default:
                 throw new IllegalStateException("Unexpected value: " + botState);
         }
