@@ -54,7 +54,7 @@ public class CallbackQueryHandler {
     private static final String HEADER_APT = "\uD83C\uDFE1 Раздел аренды Квартир\n\nТут вы можете посмотреть доступныое жилье эконом, бзнес и премиум класса.";
     private static final String BACK = "start::<В начало";
     private static final String DONE = "✅ Ваша зявка принята.\n\nВ ближайшее время с вами свяжется наш менеджер для подтверждения бранирования.\n\nСпасибо что воспользовались нашим сервисом.\uD83E\uDD70";
-    private static final String HELLO_MSG = "RentGuyBot®️\nБот по аренде автомобией и жилья в Сочи.\n\nВыбирай и бранируй автомобили и жилье в лбое время.\nБот это быстро, легко и всегда подрукой.\n\n\uD83D\uDC47\uD83C\uDFFDЧтобы начать выберите категорию\uD83D\uDC47\uD83C\uDFFD";
+    private static final String HELLO_MSG = "MiraNotificationsBot \uD83D\uDC68\uD83C\uDFFC\u200D\uD83D\uDE80️\nЧто умеет бот:\n";
     private static final String PRICE_MSG = "Введите диапазон цен\nв формате 1000-100000:";
     private static final String START_CASE = "start";
     private static final String CAR_CASE = "car";
@@ -113,8 +113,28 @@ public class CallbackQueryHandler {
             case START_CASE:
                 callBackAnswer = getMainMenuMessage(buttonQuery.getMessage());
                 break;
-            case "backT":
-                callBackAnswer = getCallBackMenu2(msgId, chatId, HELLO_MSG, List.of("car::\uD83C\uDFCE Автомобиль", "apartment::\uD83C\uDFE1 Жильё"));
+            case "choseDB":
+                callBackAnswer = getCallBackMenu2(msgId, chatId, "\uD83D\uDDC4 Выбор базы данных\n\nДля поиска данных по таблицам выбирите одну из доступных баз данных:", List.of("db1::First DataBase", "db2::Second DataBase","main::<назад"));
+                messageHandlerCash.saveBotCategoryState(userId, BotState.AUTH);
+                break;
+            case "main":
+                callBackAnswer = getCallBackMenu2(msgId, chatId, HELLO_MSG, List.of("choseDB::Выбрать базу данных", "sendErrorMsg::Отправить сообщение об ошибке"));
+                break;
+            case "db1":
+                callBackAnswer = getCallBackMenu2(msgId, chatId, "\uD83D\uDDC4 First DataBase \n\nТут можно найти ошибки по ключу.\nВведите значение вида %1231423%:", List.of("choseDB::<назад"));
+                messageHandlerCash.saveBotCategoryState(userId, BotState.SEARCH);
+                break;
+            case "db2":
+                callBackAnswer = getCallBackMenu2(msgId, chatId, "\uD83D\uDDC4 Second DataBase \n\nТут можно найти ошибки по ключу.\nВведите значение вида %1231423%:", List.of("choseDB::<назад"));
+                messageHandlerCash.saveBotCategoryState(userId, BotState.SEARCH);
+                break;
+            case "sendErrorMsg":
+                callBackAnswer = getCallBackMenu2(msgId, chatId, " \uD83D\uDE14 Простите, на данный момент функционал в разработке, возвращайтесь позже.", List.of("main::<назад"));
+                messageHandlerCash.saveBotCategoryState(userId, BotState.AUTH);
+                break;
+            case"acceptInput":
+                callBackAnswer = getCallBackMenu2(msgId, chatId, "\uD83D\uDE14 По вашему запросу ничего не найдено.\nМожете попробовать еще рас.\n\nЗначение вида %1231423%:", List.of("choseDB::<назад"));
+                messageHandlerCash.saveBotCategoryState(userId, BotState.SEARCH);
                 break;
             case "adverts":
                 List<Advert> advertList = (List<Advert>) advertRepository.findAll();
@@ -387,7 +407,7 @@ public class CallbackQueryHandler {
                 .chatId(String.valueOf(chatId))
                 .messageId(msgId)
                 .text(header)
-                .replyMarkup(getInlineMessageButtons1())
+                .replyMarkup(getInlineMessageButtons(menuItems))
                 .build();
     }
 
@@ -401,20 +421,24 @@ public class CallbackQueryHandler {
 
     public InlineKeyboardMarkup getInlineMessageButtons1() {
         InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
-        InlineKeyboardButton carBtn = new InlineKeyboardButton();
-        carBtn.setText("Жильё");
-        carBtn.setCallbackData(CAR_CASE);
 
-        InlineKeyboardButton apartmentBtn = new InlineKeyboardButton();
-        apartmentBtn.setText("Квартира");
-        apartmentBtn.setCallbackData(APARTMENT_CASE);
+        InlineKeyboardButton choseDB = new InlineKeyboardButton();
+        choseDB.setText("Выбрать Базу Данных");
+        choseDB.setCallbackData("choseDB");
 
-        List<InlineKeyboardButton> keyboardButtonsRow1 = new ArrayList<>();
-        keyboardButtonsRow1.add(carBtn);
-        //keyboardButtonsRow1.add(apartmentBtn);
+        List<InlineKeyboardButton> row1 = new ArrayList<>();
+        row1.add(choseDB);
+
+        InlineKeyboardButton sendMsg = new InlineKeyboardButton();
+        sendMsg.setText("Отправить сообщение об ошибке");
+        sendMsg.setCallbackData("sendErrorMsg");
+
+        List<InlineKeyboardButton> row2 = new ArrayList<>();
+        row2.add(sendMsg);
 
         List<List<InlineKeyboardButton>> rowList = new ArrayList<>();
-        rowList.add(keyboardButtonsRow1);
+        rowList.add(row1);
+        rowList.add(row2);
 
         inlineKeyboardMarkup.setKeyboard(rowList);
         return inlineKeyboardMarkup;

@@ -2,6 +2,8 @@ package ru.skb.rentguy.first.model;
 
 public enum BotState {
     CAR,
+    SEARCH,
+    AUTH,
     INPUT_ADVERT_PRICE,
     INPUT_PRICES,
     INPUT_ADVERT_TITLE,

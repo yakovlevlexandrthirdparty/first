@@ -49,9 +49,19 @@ public class MessageHandler {
         long chatId = message.getChatId();
         botStateCash.saveBotState(userId, botState);
         messageHandlerCash.saveBotCategoryState(userId, msgHandlerStage);
+        System.out.println("Message hendel:"+message);
+        System.out.println("msgHandlerStage="+msgHandlerStage.name());
         switch (msgHandlerStage.name()) {
             case "START":
+                messageHandlerCash.saveBotCategoryState(userId, BotState.AUTH);
                 return callbackQueryHandler.getMainMenuMessage(message);
+            case "AUTH":
+                return SendMessage.builder()
+                    .chatId(String.valueOf(chatId))
+                    .text("\uD83D\uDC68\uD83C\uDFFE\u200D\uD83D\uDCBC Пока что рано что-то писать, давай сначала. /start")
+                    .build();
+            case "SEARCH":
+                return enterPrices(message);
             case "INPUT_ADVERT_TITLE":
                 if (message.getText().length() < 150) {
                     Advert advert = advertCash.getAdvertMap().get(userId);
@@ -153,9 +163,8 @@ public class MessageHandler {
         long userId = message.getFrom().getId();
         SendMessage sendMessage = new SendMessage();
         sendMessage.setChatId(String.valueOf(message.getChatId()));
-        sendMessage.setText("Подтвердите диапазон цен: от " + message.getText() + "₽");
-        sendMessage.setReplyMarkup(getInlineMessageButtons(List.of("acceptPrice::Да, диапазон цен верный")));
-        messageHandlerCash.saveBotCategoryState(userId, BotState.APARTMENTS_LIST);
+        sendMessage.setText("Подтвердите ввод или введите заново:\n\nSELECT * FROM ... LIKE '" + message.getText() + "'");
+        sendMessage.setReplyMarkup(getInlineMessageButtons(List.of("acceptInput::✅Да, значение верно","choseDB::↩️Нет, к выбору БД")));
         return sendMessage;
     }
 
